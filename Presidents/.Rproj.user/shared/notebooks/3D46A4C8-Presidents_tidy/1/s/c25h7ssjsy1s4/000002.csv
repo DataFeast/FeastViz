@@ -1,0 +1,13 @@
+"0","setdiff(df_incomes$Country, df_world_tile$name)
+"
+"1","[1]"
+"1"," ""Andorra""      "
+"1"," ""Hong Kong""    "
+"1"," ""Liechtenstein"""
+"1"," ""Monaco""       "
+"1"," ""Palestine""    "
+"1"," ""San Marino""   "
+"1"," ""Taiwan""       "
+"1"," ""Vatican""      "
+"1","
+"

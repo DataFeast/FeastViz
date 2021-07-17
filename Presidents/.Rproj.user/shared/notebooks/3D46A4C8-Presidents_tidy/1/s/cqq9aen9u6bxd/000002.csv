@@ -1,0 +1,2 @@
+"0","df_incomes <- read.csv(""https://raw.githubusercontent.com/DataFeast71/Data_explorations/main/Salaries_HeadGovernment/data/Presidents_data_clean.csv"", header = TRUE, stringsAsFactors = FALSE)"
+"0","head(df_incomes)"
