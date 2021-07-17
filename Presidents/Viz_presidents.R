@@ -11,6 +11,7 @@ library(showtext)
 library(patchwork)
 library(ggtext)
 
+## Colors
 regions_colors <- c("Europe"="#005eb4", 
                     "South America"="#d30080", 
                     "Asia"="#ffcf00", 

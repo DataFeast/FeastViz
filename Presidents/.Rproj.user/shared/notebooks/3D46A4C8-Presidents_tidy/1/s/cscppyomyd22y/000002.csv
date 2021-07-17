@@ -1,2 +1,0 @@
-"0","df_sorted <- df_president %>% "
-"0","  mutate(region = fct_reorder(region, -president_income_median))"
