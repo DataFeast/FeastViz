@@ -108,10 +108,11 @@ arrows_ministers <- tibble(
 gplot_president <- ggplot(df_president, aes(x = region, y = HeadOfState, color = region))+
   ## custom
   coord_flip() +
-  scale_y_continuous(trans = "log10", limits = c(1e3,1.5e10) ,labels = scales::dollar, expand = c(0.005,0.005)) +
+  scale_y_continuous(trans = "log10", limits = c(1e3,1.5e10) , labels = c("$10,000", "$1 Millon", "$100 Millones", "$1 Billon"),
+                     breaks = c(1e4, 1e6, 1e8, 1e10)) +
   scale_color_manual(values = regions_colors) +
   scale_x_discrete(labels = c("Europa", "América del Sur", "Asia", "Africa", "Oceania", "América del Norte")) +
-  labs(x = NULL, y = "Ingreso Anual (USD)", title = "Representantes de Estado (Presidentes, Realeza, Sultanes, etc.)") +
+  labs(x = NULL, y = "Ingreso Anual (USD)", title = "Representantes de Estado\n(Presidentes, Realeza, Sultanes, etc.)") +
   theme(
     legend.position = "none",
     plot.title = element_text(size = 40, family = "Roboto Mono", hjust = 0.5),
@@ -153,7 +154,7 @@ gplot_ministers <- ggplot(df_ministers, aes(x = region, y = HeadGoverment, color
   scale_x_discrete(labels = c("Europa", "América del Sur", "Asia", "Africa", "Oceania", "América del Norte")) +
   scale_color_manual(values = regions_colors) +
   labs(x = NULL, y = "Ingreso Anual (USD)", caption = "Visualization: <b style='font-family:Norsebold;font-size:30pt;'>DATA FEAST</b> | Data: Head of State and Government",
-       title = "Representantes de Gobierno (Primer Ministro, Canciller, etc)") +
+       title = "Representantes de Gobierno\n(Primer Ministro, Canciller, etc)") +
   theme(
     legend.position = "none",
     plot.title = element_text(size = 40, family = "Roboto Mono", hjust = 0.5),
@@ -186,9 +187,3 @@ ggsave(plot = gplot_ministers, "FeastViz_Ministros.png")
 
 infografic <- gplot_president + gplot_ministers + plot_layout(nrow = 1)
 ggsave(plot = infografic, "FeastViz_IngresosGobierno.png", width = 15)
-
-
-df_ministers %>%
-  filter(StatusGoverment == "President")
- 
-unique(df_ministers$StatusGoverment)
