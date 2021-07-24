@@ -5,7 +5,7 @@ One of things that we enjoy after data collection and exploration is show the in
 ## [Anime Genre Horror](https://github.com/DataFeast71/FeastViz/tree/main/Anime)
 
 <p align="center">
-<img src="https://github.com/DataFeast71/FeastViz/blob/main/Presidents/FeastViz_Presidentes.png?raw=true" width=400 height=400 aling="center">
+<img src="https://github.com/DataFeast71/FeastViz/blob/main/Anime/img/2021-07-24_FeastViz_AnimesHorror.png?raw=true" width=400 height=400 aling="center">
 </p>
 
 ## [Head of Government Annual Incomes](https://github.com/DataFeast71/FeastViz/tree/main/Presidents)
