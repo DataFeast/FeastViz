@@ -5,19 +5,19 @@ One of things that we enjoy after data collection and exploration is show the in
 ## [Kpop Google Trends](https://github.com/DataFeast71/FeastViz/tree/main/Kpop)
 
 <p align="center">
-<img src="https://github.com/DataFeast71/FeastViz/blob/main/Kpop/img/2021-07-25_FeastViz_KpopTrends.png?raw=true" width=400 height=400 align="center">
+<img src="https://github.com/DataFeast71/FeastViz/blob/main/Kpop/img/2021-07-25_FeastViz_KpopTrends.png?raw=true" width=850 height=400 align="center">
 </p>
 
 ## [Anime Genre Horror](https://github.com/DataFeast71/FeastViz/tree/main/Anime)
 
 <p align="center">
-<img src="https://github.com/DataFeast71/FeastViz/blob/main/Anime/img/2021-07-24_FeastViz_AnimesHorror.png?raw=true" width=400 height=400 align="center">
+<img src="https://github.com/DataFeast71/FeastViz/blob/main/Anime/img/2021-07-24_FeastViz_AnimesHorror.png?raw=true" width=800 height=400 align="center">
 </p>
 
 ## [Head of Government Annual Incomes](https://github.com/DataFeast71/FeastViz/tree/main/Presidents)
 
 <p align="center">
-<img src="https://github.com/DataFeast71/FeastViz/blob/main/Presidents/FeastViz_Presidentes.png?raw=true" width=400 heigth=400 align="center">
+<img src="https://github.com/DataFeast71/FeastViz/blob/main/Presidents/FeastViz_Presidentes.png?raw=true" width=600 heigth=400 align="center">
 </p>
 
 <details>
