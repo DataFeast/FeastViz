@@ -5,7 +5,7 @@ One of things that we enjoy after data collection and exploration is show the in
 ## [Fossils fuel growth](https://github.com/DataFeast71/FeastViz/tree/main/Fossils)
 
 <p align="center">
-<img src="" width=850 height=400 align="center">
+<img src="https://github.com/DataFeast71/FeastViz/blob/main/Fossils/img/2021-07-29_FeastViz_FossilsPanel.png?raw=true" width=850 height=400 align="center">
 </p>
 
 ## [Kpop Google Trends](https://github.com/DataFeast71/FeastViz/tree/main/Kpop)
