@@ -1,0 +1,271 @@
+---
+title: |
+  [1]: https://www.facebook.com/An%C3%A1lisis-y-visualizaci%C3%B3n-de-datos-100602148375744
+  [2]: https://raw.githubusercontent.com/DataFeast71/COVID19_plots/main/img/Logo_W.jpeg {width=1in}
+  [![Analisis Y visualizacion][2]][1]
+  Fossil's Use 
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    code_folding: null
+    df_print: paged
+    highlight: zenburn
+    theme: cerulean
+    toc: true
+    toc_float: true
+    toc_deep: 3
+---
+
+<style>
+.tocify-extend-page {
+  height: 0 !important;
+}
+</style>
+
+```{r, echo=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, echo =FALSE)
+```
+
+```{r set-up}
+# library(tidyverse)
+# library(colorspace)
+# library(ggrepel)
+# library(ggtext)
+# library(RColorBrewer)
+# library(showtext)
+# 
+# ## Fonts
+# font_add_google("Raleway", "Raleway")
+# font_add_google("Lato", "Lato")
+# font_add("Norsebold", "../DataFeast_utilities/Norsebold.otf")
+# showtext_auto()
+```
+
+As we all know, the fossil fuels (coal, oil, gas) have, and continue to, play a dominant role in global energy. But they also come with several negative impacts between countries but worse in a ecology level.
+
+When burned they produce carbon dioxide $(CO_2)$ and are the largest driver of global climate change. They are also a major contributos to local air pollution, which is estimated to linked to millions of premature deaths each year.
+
+There are already some alternative energy' source, however, the countries still are completely dependant from the fossil fuel. Make the change is very difficult.
+
+We would explore with different visualization this subject in our section from [Data Exploration](). Nevertheless, here we would make a Visuaization to show how much the countries have grown since the first register in the database to now. Also we remark those countries that have reduced the fossil's use. 
+
+## Data 
+
+The data was downloaded from [Our World in Data](https://ourworldindata.org/fossil-fuels) wiorking specifically with the fossil fuel as primary energy in each country.
+
+This data contain different countries and the use of fossils fuel in **Tera watts Hour**. Searching this [unit](https://www.justintools.com/unit-conversion/energy.php?k1=terawatt-hour&k2=tonne-of-oil-equivalent) we found that 1 TerawattHour is equivalent to 588427.59071592 Barrels of Oil and each Barrel is **159 liters**. So, it a chingo.
+
+With this data we want to produce two relative changes:
+
+* One is from 1965 to 1992 and,
+* the other is from 1992 to 2019
+
+This will represent the half of the time, but also we want:
+
+* The relative change from 1965 to 2019
+
+In this way we can see globally those countries that in 54 years reduce the fossils fuel energy.
+
+From the relative change we want the absolute values as it would represent how deep is the change but also we need the **sign**, positive or negative, to indentify who grows or at least reduce a little the change.
+
+```{r}
+df <- read_csv("Data/fossil-fuel-primary-energy.csv") %>% 
+  pivot_wider(id_cols = c(Entity, Code), names_from = Year, values_from = `Fossil Fuels (TWh)`) %>% 
+  select(Entity, `1965`, `1992`, `2019`) %>% 
+  mutate(
+    relative_first = abs(((`1992`- `1965`)/`1965`)*100),
+    relative_second = abs(((`2019`- `1992`)/`1992`)*100),
+    relative_second_sign = ((`2019`- `1992`)/`1992`)*100,
+    relative_total = ((`2019`- `1965`)/`1965`)*100,
+    relative_total = if_else(is.na(relative_total), ((`2019`- `1992`)/`1992`)*100, relative_total)
+  ) %>% 
+  pivot_longer(cols = -c(Entity, relative_first, relative_second, relative_second_sign, relative_total),
+               names_to = "year",
+               values_to = "Fossils") %>% 
+  filter(
+    !is.na(Fossils),
+    !str_detect(Entity, "World")
+  )
+```
+
+## Visualization
+
+For this visualization we would make **Slopes** as we want to remark changes between two times for different countries. Here we would dissect and try to explain the code, because for us it is the only way to learn.
+
+As `ggplot2` works with layers, we would use that to draw each subset for the different conditions. For example those that decrease or those that increase.
+
+From our DataFrame we remove Mexico as this country will be added after and also relative changes less than 0 will be removed. So with this subset we would only show the coutries that grow.
+
+In the `ggplot`, we would represent the year and Fossils Fuels as numeric and as we would add lines we need to add the `group` argument in `aes`. This `aes` will be used in all `geom_*()` functions.
+
+```{r}
+gg_slopes <- df %>% 
+  filter(Entity != "Mexico", relative_total < 0) %>% 
+  ggplot(aes(x = year, y = Fossils, group = Entity)) +
+  # Plotting those that increase in the first half
+  geom_line(data = df %>% filter(relative_total >= 0, year <= 1992),
+            aes(color = relative_first), alpha = 0.3, size = 0.95) +
+  # Plotting those that increase in the second half
+  geom_line(data = df %>% filter(relative_total >= 0, year >= 1992),
+            aes(color = relative_second), alpha = 0.3, size = 0.95) 
+gg_slopes
+```
+
+
+```{r}
+gg_slopes <- gg_slopes +
+  # PLotting those that decrease
+  geom_line(data = df %>% filter(relative_total < 0, year <= 1992),
+            aes(color = relative_first *4, 
+                color = after_scale(darken(color, 0.2, space = "HLS"))),
+            size = 1.5) +
+  # Plotting those that decrease in second half
+  geom_line(data = df %>% filter(relative_total < 0, year >= 1992),
+            aes(color = relative_second *4,
+                color = after_scale(darken(color, 0.2, space = "HLS"))),
+            size = 1.5)
+gg_slopes
+```
+
+Then we can add only a line for Mexico.
+
+```{r}
+gg_slopes <- gg_slopes +
+  # PLotting Mexico
+  geom_line(data = df %>% filter(Entity == "Mexico"), color = "#006e44", size = 2)
+gg_slopes
+```
+
+So far we have all the lines from we are interested, but only have the lines is not enought. To improve more we can add the points that will indicate each country. These points will have the same design, remarking the countries that reduce the use of Fossil Fuel.
+
+```{r}
+gg_slopes <- gg_slopes +
+  ## Adding points
+  # Points that increase
+  geom_point(data = df %>% filter(relative_total >= 0, year < 1992),
+             aes(color = relative_first), size = 2.0) +
+  geom_point(data = df %>% filter(relative_total >= 0, year >= 1992),
+             aes(color = relative_second), size = 2)
+gg_slopes
+```
+
+Now in the case of the points that decrease first we will draw a big point in white color and the fill is transparent. In this way when we add the normal points, the white circuference will be useful to remark those points.
+
+And finally here we add the points for Mexico.
+
+```{r}
+gg_slopes <- gg_slopes +
+  # Points that descrease
+  geom_point(shape = 21, fill = "white", color = "transparent", size = 4, stroke = 2) +
+  geom_point(data = df %>% filter(relative_total < 0, year < 1992),
+             aes(color = relative_first*4,
+                 color = after_scale(darken(color, 0.2, space = "HLS"))),
+             shape = 21, stroke = 2, fill = NA, size = 4) +
+  geom_point(data = df %>% filter(relative_total < 0, year >= 1992),
+             aes(color = relative_second*4,
+                 color = after_scale(darken(color, 0.2, space = "HLS"))),
+             shape = 21, stroke = 2, fill = NA, size = 4) +
+  # Plotting Mexico
+  geom_point(data = df %>% filter(Entity == "Mexico"), size = 5, color = "#006e44")
+gg_slopes
+```
+
+
+So far so good but we observe some problems. For example, almost all countries and in the bottom meanwhile only some countries have a big measure en Fossils fuels. When we observe this behavior it means that it shows a **Exponential grow**.
+
+The other problem that we have here is tha our plot is not very intuitive as we do no have the name of the countries.
+
+First we would add text to our plot using `geom_text_repel()` to show the coutries from `ggrepel`.
+
+To order this, we would use `geom_text_repel()` to show the coutries that have a data from 1965. There are others countries that do not have this values and we can show them in the other side. So these labels will be in the left side of the plot.
+
+Meanwhile, in the right side we will add the which was the relative changes, in others words, how much the country reduce the fossil fuel to the levels at the beggining (1965).
+
+To add a Mexico's label we would use `geom_richtext()` from `ggtext` that allows to add a html tags to give more style.
+
+```{r}
+gg_slopes <- gg_slopes +
+  ## Label countries that decrease
+  geom_text_repel(data = df %>%  filter(relative_total < 0, year == 1965),
+                  aes(label = Entity), hjust = 1, nudge_x = -0.11, size = 4.5, family = "Lato", direction = "y",
+                  force = 0.5, min.segment.length = 0, segment.size = 0.5, fontface = "bold") +
+  # Right Side
+  geom_text_repel(data = df %>%  filter(relative_total < 0, year == 2019, !is.na(relative_first)),
+                  aes(label = glue::glue("{format(abs(relative_total), digits = 3)}% ↓")),
+                  hjust = 0, nudge_x = 0.1, size = 4.5, direction = "y", force = 0.5, min.segment.length = 0, segment.size = 0.5) +
+  # Label for Mexico
+  geom_richtext(aes(x = "1992", y = 1200,
+                    label = "<b style='font-size:21pt;font-family:Lato;'>Mexico</b><br>365.01% ↑"),
+                color = "grey15", nudge_x = -0.45, size = 4.5, fontface = "bold", stat = "unique",
+                inherit.aes = FALSE, fill = NA, label.colour = NA) +
+    geom_richtext(aes(x = "2019", y = 1300, label = "<br>58.63% ↑"),
+                color = "grey15", nudge_x = -0.45, size = 4.5, fontface = "bold", stat = "unique",
+                inherit.aes = FALSE, fill = NA, label.colour = NA) 
+```
+
+To this point we have a plot with the lines and points that represent the countries and addede some labels that represent the countries that reduce the fossils fuel use. As we note, there are some countries that doesn't have data in 1965 so we need to added those countries manually in the right side. For this we would use the `annotate()` function.
+
+At the same time we would add some text in the plot using `geom_textbox()`. This box would contain a description of the plot.
+
+```{r}
+gg_slopes <- gg_slopes + 
+  ## Annotations
+  annotate("text", x = 3.05, y = 34000, label = "34000 TWh", size = 4.5, 
+           family = "Raleway", color = "grey65", hjust = 0, vjust = 0.3) +
+  annotate("text", x = 3.05, y = 0.5, label = "0 TWh", size = 4.5, 
+           family = "Raleway", color = "grey65", hjust = 0, vjust = 0.3) +
+  ## Add Box text
+  geom_textbox(aes(x = "1965", y = 8.5e4, label = "Only Five Countries have Reduced the Fossil Fuel Energy Consumed to levels before the first register in 1965"), 
+               family = "Raleway", size = 5.5, box.colour = NA, fill = NA, nudge_x = -1.1, vjust = 0.6, 
+               width = unit(3.1, "inch"), lineheight = 1.25, stat = "unique", inherit.aes = FALSE) +
+  geom_textbox(aes(x = "1965", y = 3e4, 
+                   label = "According to the <i>Fossil Fuel Energy</i> by the BP Statistical Review of World Energy, only five from 82 countries listed (with data from 1965) have decreasing trend in the use -or even dependence- in the Fossil Fuel as a energy source. This decreasing means that they reduce the fossil energy to levels before than 1965. <br><br><br><br> All are European Countries but even if they showed a decrease -that is good- they looks dull against the rest of the countries that have a exponential increase -at least in my opinion. <br><br> But the fossil fuels are obsolete, or not??"),
+               family = "Raleway", size = 4.0, box.colour = NA, fill = NA, nudge_x = -1.1, vjust = 1, width = unit(3.1, "inch"),
+               lineheight = 1.4, stat = "unique", inherit.aes = FALSE) 
+```
+
+At last but not least, we need to make changes in the scales, like colors and transform the `y-axis` in logarithmic as it shows an exponential grow. Then we make adjustments in the theme that would change a lot our plot.
+
+For the colors we use some that was related to fossil (searching in the web).
+
+```{r}
+scale_fossils <- colorRampPalette(colors = c("#88b489", "#a9bf9c", "#b0bcac","#a0aa9d", "#899b98", "#836c62", "#673c24", "#583218"))
+```
+
+```{r}
+gg_slopes <- gg_slopes +
+  # Add Base points
+  geom_point(aes(y = 0.5), shape = "-", color = "grey65", size = 8, stat = "unique") +
+  # Scales
+  coord_cartesian(clip = "off") +
+  scale_y_continuous(trans = "log10", expand = c(0,0)) +
+  scale_x_discrete(expand = c(0.3, 0.3), position = "top") +
+  scale_color_gradientn(trans = "log10", colours = scale_fossils(100), guide = "none") +
+  # Caption
+  labs(caption = "Visualization: <span style='font-family:Norsebold;'><b style='font-size:14pt'>Data Feast </b></span> | Data: Fossil fuel consumption. Our World in Data 12/07/2021") +
+  # Theme
+  theme_void() +
+    theme(
+      # Panel
+      panel.grid.major.x = element_line(color = "grey85", size = 1),
+      # Plot
+      plot.margin = margin(15, 0, 15, 150),
+      plot.caption = element_markdown(family = "Lato", size = 9, color = "grey40", hjust = 1,
+                                      margin = margin(t = 25, b = 0, r = 50)),
+      plot.caption.position = "plot",
+      # Axis
+      axis.text.x = element_text(color = "grey50", size = 14, family = "Raleway", margin = margin(t=5, b=10))
+  )
+```
+
+Once we make the plot we need to save and convert to `png`.
+
+```{r}
+ggsave(plot = gg_slopes, filename = "Fossils.pdf", height = 13.5, width = 10, device = cairo_pdf) 
+
+pdftools::pdf_convert(
+  pdf = "Fossils.pdf", 
+  filenames = "Fossils.png", 
+  format = "png", dpi = 300
+)
+```
