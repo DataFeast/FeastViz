@@ -1,0 +1,367 @@
+---
+title: |
+  [1]: https://www.facebook.com/An%C3%A1lisis-y-visualizaci%C3%B3n-de-datos-100602148375744
+  [2]: https://raw.githubusercontent.com/DataFeast71/COVID19_plots/main/img/Logo_W.jpeg {width=1in}
+  [![Analisis Y visualizacion][2]][1]
+  Fossil's Use 
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    code_folding: null
+    df_print: paged
+    highlight: zenburn
+    theme: cerulean
+    toc: true
+    toc_float: true
+    toc_deep: 3
+---
+
+<style>
+.tocify-extend-page {
+  height: 0 !important;
+}
+</style>
+
+```{r, echo=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, echo =FALSE)
+```
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(geofacet)
+library(treemapify)
+library(colorspace)
+library(ggtext)
+library(cowplot)
+library(showtext)
+
+# fonts
+font_add_google(name = "Montserrat",family = "Montserrat")
+font_add("Norsebold", "../DataFeast_utilities/Norsebold.otf")
+showtext_auto()
+```
+
+
+In this case we area interested in show the emisions of GreenHouse gas and see which countries produce more of theses gases and from what source. We would focus in American Continent and would use a `geofacet` package that allows us to represent the continent in a grid and for each country add a plot.
+
+## Data Preparation
+
+The data cames from Annual GreenHouse gas emissions by sector from [Our World in Data](https://ourworldindata.org/emissions-by-sector#co2-emissions-by-sector) measured in tonnes of carbon dioxide equivalents. From this webpage the last data is 2016 but we found the original data source [Climate Watch](https://www.climatewatchdata.org/data-explorer/historical-emissions?historical-emissions-data-sources=cait&historical-emissions-gases=all-ghg&historical-emissions-regions=All%20Selected&historical-emissions-sectors=All%20Selected&page=1). From here we would use the dataset that contain information from 2018 which is the most recent year.
+
+This dataset contain all emissions that are measured in tonnes of carbon dioxide-equivalents from different sectors.
+
+```{r}
+emisions <- read_csv("Data/historical_emissions.csv")
+head(emisions)
+```
+
+From this dataframe we want to select the year **2018** that it is the last year with information. Also from the `Gas` column que need to select **All GHG** which means **All GreenHouse Gas**.
+
+```{r}
+emissions_2018 <- emisions %>% 
+  filter(Gas == "All GHG", !Sector %in% c("Total including LUCF", "Total excluding LUCF")) %>% 
+  select(Country, Sector, `2018`)
+head(emissions_2018)
+```
+
+As we are interested in only plot the American Continent we would need the countries names. In this case we want to represent the countries by a grid and we found that in `R` there is a specific package for this type of plot that is called [`geofacet`](https://hafen.github.io/geofacet/). When we explore its [documentations](https://cran.r-project.org/web/packages/geofacet/vignettes/geofacet.html) we didn't found a grid that can be used for the **American Contitent**. We observe that are for some particular countries but not as a continent.
+
+One possible solution is use a previuos data in which we represent the world in a grid and show the incomes for [Government Presidents](). We can use the same data to extract only the American contient. This World Tiles data was made by [Maartenzam](https://www.maartenlambrechts.com/2017/10/22/tutorial-a-worldtilegrid-with-ggplot2.html).
+
+```{r}
+df_world_tile <- read_csv("https://gist.githubusercontent.com/maartenzam/787498bbc07ae06b637447dbd430ea0a/raw/9a9dafafb44d8990f85243a9c7ca349acd3a0d07/worldtilegrid.csv") %>% 
+  mutate(
+    ## Namibias two-digit country code is handled as `NA` 
+    alpha = if_else(name == "Namibia", "NA", alpha.2),
+    ## We are oing to split America into "North" and South"
+    region = if_else(region == "Americas", sub.region, region),
+    region = if_else(region %in% c("Northern America", "Central America", "Caribbean"), "North America", region),
+    region = if_else(region == "Southern America", "South America", region),
+    ## to join both data set, we need a Id column
+    country_code = alpha.3
+  ) %>% 
+  filter(str_detect(region,"America"))
+head(df_world_tile)
+```
+
+One of the problems from working with countries is its names. Sometimes (or many times) each databases has its own particular way to write the countries names, using ISO code, complete name, countri abbrebation, etc. So, each time that we would work with countries files we need to check that the names are correct and if not make the necessary corrections.
+
+In this case, we alredy know the countries that need to correct.
+
+```{r}
+emissions_2018 <- emissions_2018 %>% 
+  mutate(Country = case_when(
+    Country == "Antigua and Barbuda" ~ "Antigua & Barbuda",
+    Country == "Saint Kitts and Nevis" ~ "St. Kitts & Nevis",
+    Country == "Saint Lucia" ~ "St. Lucia",
+    Country == "Saint Vincent and the Grenadines" ~ "St. Vincent & the Grenadines",
+    Country == "Trinidad and Tobago" ~ "Trinidad & Tobago",
+    Country == "United States" ~ "United States of America",
+    TRUE ~ Country
+  )) 
+head(emissions_2018)
+```
+
+Once we complete the Country names we select only the American Continent.
+
+Also we already have the data in a tidy format but we not that there are many **Sectors** present in our dataset. We can reduce some of them in less categories. We made this to simplifly our visualization. The new sector would be:
+
+* **Agriculture**: Will be conformed by emissions from "Agriculture" and "Land-Use Change and Forestry".
+* **Industrial** : Will be conformed by emissions form "Industrial Processes", "Fugitive Emissions", "Waste", "Other Fuel Combustions".
+* **Construction** : Will be conformeed by emissions from "Manufacturing/Construction", "Building".
+* **Energy/Electricity**: Will be conformeed by emissions from "Energy", "Electricity/Heat".
+* **Transportation**: will be the same.
+
+Once we made the new categories we can group by Country, Sector to get the sum of total Emissions. Then we need to calculate the total from each Sector to get the relative  to the world for each contry. In this way we can see the countries that have more contributions in the greenHouse emissions only in the America Continent and observe which contries produce more of these gases.
+
+```{r}
+emissions_america <- emissions_2018 %>% 
+  filter(Country %in% df_world_tile$name)
+  
+emissions_grip <- emissions_america %>% 
+  mutate(Sector_New = case_when(
+    Sector %in% c("Agriculture", "Land-Use Change and Forestry") ~ "Agriculture",
+    Sector %in% c("Industrial Processes", "Fugitive Emissions", "Waste", "Other Fuel Combustion", "Bunker Fuels") ~ "Industry",
+    Sector %in% c("Manufacturing/Construction", "Building") ~ "Construction",
+    Sector %in% c("Energy", "Electricity/Heat") ~ "Energy\nElectricity",
+    TRUE ~ Sector
+  ),
+  Sector_New = factor(Sector_New)) %>% 
+  group_by(Country, Sector_New) %>% 
+  summarize(`2018` = sum(`2018`, na.rm = TRUE)) %>% 
+  group_by(Sector_New) %>% 
+  mutate(total_emm = sum(`2018`, na.rm = TRUE)) %>% 
+  group_by(Country) %>% 
+  mutate(
+    total_country = sum(`2018`, na.rm = TRUE),
+    rel = `2018` / total_emm
+  ) %>% 
+  left_join(df_world_tile[,c(1:3)], by = c("Country"="name")) %>% 
+  rename("country" = alpha.2)
+```
+
+```{r}
+head(emissions_grip)
+```
+
+
+At this moment we already have a complete dataset that can be used.
+
+## Preparing the grid.
+
+To make the grid we need the next columns:
+
+* row
+* col
+* code 
+* name
+
+```{r}
+my_grid <- df_world_tile %>% 
+  select(x, y, alpha.2, name) %>% 
+  rename("col" = x,
+         "row" = y,
+         "code" = alpha.2)
+head(my_grid)
+```
+
+We can test this grip using `grid_preview()`.
+
+```{r}
+grid_preview(my_grid)
+```
+
+### Colors and other custom changes
+
+```{r}
+pal <- c("Agriculture" = "#368e11", "Construction" = "#7c5c2b", "Energy\nElectricity" = "#0093ff", "Industry" = "#da8100", "Transportation" = "#d20047")
+
+theme_set(theme_void())
+
+theme_update(
+  strip.text = element_blank(),
+  panel.spacing = unit(0.25, "lines"),
+  plot.margin = margin(rep(20, 4)),
+  plot.background = element_rect(color = "white", fill = "white"),
+  legend.position = "none"
+)
+```
+
+```{r}
+head(emissions_grip)
+```
+
+## Visualization
+
+First we want to make the general plot, which will be the plot that would represent each country in the grid that will be used with `geofacet` packaage.
+
+Following the [Cedric's code](), the plot will be a treemap. In this case, each rectangle represents a __Sector__ and its size represents the magnitude of greenhouse gas emissions from that sector.
+
+```{r}
+emissions_grip %>% 
+  filter(country == "MX") %>%
+  ggplot(aes(area = `2018`, fill = Sector_New)) +
+  geom_treemap(aes(alpha = rel), color = NA, start = "topleft", layout = "scol") +
+  geom_text(aes(x = 0, y = 1, label = country), size = 60, alpha = 1, color = "grey40", stat = "unique") +
+  scale_alpha(range= c(0.3,1), guide = "none") +
+  scale_fill_manual(values = pal) +
+  theme(legend.position = "bottom")
+```
+
+Perfect, this is the visualization that we want to show for each country.
+
+### Geo Facet
+
+Using the previous code we would add the function `facet_geo()` using the grid that represents the American Contienent. Each country will be a facet (or box) and in each facet the treemap would be represented.
+
+Also we would add a margin to left because we will put an additional plot.
+
+```{r, message=FALSE, warning=FALSE}
+grid <- ggplot(emissions_grip, aes(area = `2018`, fill = Sector_New, subgroup = country)) +
+  geom_treemap(aes(alpha = rel), color = NA, start = "topleft", layout = "scol") +
+  geom_text(aes(x = 0, y = 1, label = glue::glue("{country}")),
+            alpha = 0.25, color = "grey40", stat = "unique", size = 25) +
+  facet_geo(~ country, grid = my_grid) +
+  scale_fill_manual(values = pal) +
+  scale_size(range = c(2,20)) +
+  scale_alpha(range = c(0.3, 1)) +
+  theme(
+    plot.margin = margin(t = 7, r = 20, b = 7, l = 200)
+  )
+grid 
+```
+
+## Legend
+
+The next step is create a pretty legend to indicate the information from the previous plot. It is possible to use the default legend from ggplot but therw would be much more details that it is better to build an additional plot.
+
+First we need to know a basic statistic for the data.
+
+In the previous plot we use the column `rel` to represent the contribution for each sector in the continenet. We observe thata the min value is **-0.022** and the max **0.70**. Almost all values are positive and the negatives are near to zero so their contribution to reduce the emission are to low compared to the rest of the countries.
+
+```{r}
+summary(emissions_grip)
+```
+
+With this information, we can create  a dataframe that contain the **Sectors** and a range according to the relative column summary. In this case we would create a range from -0.1 to 0.8 because the max is 0.702. Here we have a negative values as some countries reduce their emisions.
+
+```{r}
+df_legend <- tibble(
+  category = rep(factor(unique(emissions_grip$Sector_New)), 10),
+  rel = rep(seq(-0.1, 0.8, by = 0.1), each = 5)
+)
+head(df_legend)
+```
+
+
+To create this legend we can use `tile` that corresponds to each category and the range si from -0.1 to 0.8. To make a gradient we can add an alpha. This will made using `geom_tile`.
+
+```{r}
+legend <- ggplot(df_legend, aes(x = rel, y = fct_rev(category))) +
+  # Each category
+  geom_tile(aes(fill = category, color = after_scale(darken(fill, 0.15, space = "HLS")),
+                alpha = rel), size = 0.25) 
+```
+
+Then we would add some Horizontal Lines to make more clear the separation between categories . This will be mde with `geom_hline()`.
+
+```{r}
+legend <- legend +
+    #Horizontal lines for sector
+    geom_hline(data = tibble(y = -0.5:5.5), aes(yintercept = y), color = "white", size = 0.8)
+```
+
+With `geom_segment()` we can create some arrows in the top of the plot. This will indicate the relative scale.
+
+```{r}
+legend <- legend  +
+  # Arrows for Realtive Scale
+  geom_segment(data = tibble(x = c(0.15, 0.6), xend = c(-0.05, 0.80)),
+               aes(x = x, xend = xend, y = 5.85, yend = 5.85),
+               inherit.aes = FALSE, color = "grey30",
+               size = 0.4, arrow = arrow(length = unit(0.2, "lines"), type = "closed")) +
+  geom_text(data = tibble(x = c(-0.13, 0.83), h = c(0,0.3), label = c("-.05%", "80%")),
+            aes(x = x, y = 5.80, label = label, hjust = h),
+            inherit.aes = FALSE, family = "Montserrat", color = "grey30", size = 4.2) 
+```
+
+To improve more the legend we can add each country as points wiht `geom_point()` to know where are in each **Sector**. Following this sense we woudl show which country has the max constribution in each emission by Sector. But for this we need to know the countries with the max contribution.
+
+```{r}
+max_country <-  df_emisions_grip %>% 
+  group_by(Sector_New) %>% 
+  filter(rel == max(rel))
+head(max_country)
+```
+
+```{r}
+legend <- legend +
+  # Add  points for each country
+  geom_point(data = emissions_grip, aes(x = rel, y = as.numeric(fct_rev(Sector_New))),
+             shape = 21, color = "transparent", fill = "white", size = 3) +
+  geom_point(data = emissions_grip, aes(x = rel, y = as.numeric(fct_rev(Sector_New))),
+             shape = 1, size = 3, alpha = 0.3) +
+  geom_text(data = max_country, aes(x = rel, y = Sector_New, label = country),
+            inherit.aes = FALSE, family = "Montserrat", color = "black", size = 4.0, nudge_y = 0.25, fontface = "bold") +
+  geom_text(data = max_country, aes(x = rel, y = Sector_New, label = glue::glue("{format(rel*100, digits = 3)}%")),
+            inherit.aes = FALSE, family = "Montserrat", color = "black", size = 3.5, nudge_y = -0.25) 
+```
+
+Finally we add the some text to explain and "play" with the dimensionst until find the best distribution. But can be better when we bind both plot: the legend and the grid.
+
+```{r}
+legend <- legend  +
+  labs(title = "How much American Countries emit greenhouse gas  in 2018?",
+         caption = "<span style='font-family:Montserrat;'><b>United States of America</b> is the country with largest greenhouse gas emisions in America. From all the continent, they emit more than 50% of all the greenhouse gas in almost all the sectors. We observe that they emit 70.2% greenhouse gas that cames from Energy and Electricity's sector and 69.0% of the total greenhouse emision by Transport in the American Continent cames from this country. <b>Brazil</b>, on the other side, is the country with the largest greenhouse gas emisions that cames from Agriculture, Land use and Forestry with 42.8% -due to forest burning in my opinion.</span><br><br><span>Visualization: <b style='font-family:Norsebold; font-size:16pt'>Data Feast</b> | Data: Climate Data Explorer (Greenhouse gasses emissions) </span>"
+    ) +
+    annotate("text", x = 0.35, y = 6.4, label = "Relative Emissions of American Countries",
+             family = "PT", color = "grey45", size = 5.2) +
+    scale_color_manual(values = pal) +
+    scale_fill_manual(values = pal) +
+    scale_alpha(range = c(0.3, 1)) +
+    scale_x_continuous(expand = c(0.005, 0.005)) +
+    scale_y_discrete(expand = c(0.5, 0.5), position = "right") +
+    coord_cartesian(clip = "off") +
+    theme(
+      plot.margin = margin(rep(0,4)),
+      plot.title = element_textbox(hjust = 0.5, face = "bold", color = "grey35",
+                                   lineheight = 1.2, size = 27, margin = margin(b = 0, t = 0),
+                                   width = unit(6.5, "inches"), family = "Montserrat"),
+      panel.spacing = unit(0, "lines"),
+      plot.caption = element_textbox(color = "grey30", size = 14, hjust = 0,
+                                     lineheight = 1.4, margin = margin(b = 0, t = -10),
+                                     width = unit(7.5, "inches")),
+      axis.text.y = element_text(size = 12, family = "Montserrat", face = "bold", color = rev(darken(pal, .2)), hjust = 0)
+    )
+```
+
+To bind the plots we would use the function `ggdraw()` from the `cowplot` package.
+
+```{r}
+America <- ggdraw(grid) +
+  draw_plot(legend, x = 0.245, y = 0.28, width = 0.45, height = 0.43, hjust = 0.5, vjust = 0.5)
+
+filename <- paste0(Sys.Date(), "_FeastViz_AmericaEmission.pdf")
+
+ggsave(plot = America, filename = filename, width = 17, height = 15, device = cairo_pdf)
+```
+
+```{r}
+pdftools::pdf_convert(
+  pdf = filename,
+  filenames = str_replace(filename, "pdf", "png"),
+  dpi = 300, format = "png"
+)
+```
+
+
+
+
+
+
+
+
+
+
+
+
