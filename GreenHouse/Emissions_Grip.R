@@ -83,7 +83,8 @@ emissions_grip <- emisions %>%
     Sector %in% c("Energy", "Electricity/Heat") ~ "Energy\nElectricity",
     TRUE ~ Sector
   ),
-  Sector_New = factor(Sector_New)) %>% 
+  Sector_New = factor(Sector_New),
+  `2018` = as.numeric(`2018`)) %>% 
   group_by(Country, Sector_New) %>% 
   summarize(`2018` = sum(`2018`, na.rm = TRUE)) %>% 
   group_by(Sector_New) %>% 
@@ -108,7 +109,7 @@ grid <- ggplot(emissions_grip, aes(area = `2018`, fill = Sector_New, subgroup = 
   # scale_size(range = c(2,20)) +
   scale_alpha(range = c(0.3, 1)) +
   theme(
-    plot.margin = margin(t = 7, r = 20, b = 7, l = 200)
+    plot.margin = margin(t = 7, r = 20, b = 100, l = 220)
   )
 
 ## Legend
@@ -121,7 +122,9 @@ max_country <-  emissions_grip %>%
   group_by(Sector_New) %>% 
   filter(rel == max(rel))
 
-text_caption <- "<span style='font-family:Montserrat;'><b>Estados Unidos de América</b> es el país con la emisión de gases más grande de todo el continente Americano. Emitieron más del 50% de gases invernadero del total del continenente en todos los sectores con excepción de Agricultura. Se observa que del Sector <i style='color:#0093ff;'>Energia y Electricidad</i>, los EEUU emiten el 70.2% de los gases totales y un 69.0% por el sector <i style='color:#d20047;'>Transporte</i>. <b>Brasil</b>, por otro lado, es uno de los países con mayor emision en el sector <i style='color:#368e11;'>Agricultura, uso de Suelo y silvicultura</i> con 42.8% -por la deforestación en mi opinión.<br>En el caso particular de <b>México</b>, emite <b>9.3 veces menos</b> que EEUU y su contribución en la emision de gases es menor del 10% en cada uno de los Sectores siendo el de la <i style='color:#da8100;'>Industria</i> el más alto. </span><br><br><span>Visualization: <b style='font-family:Norsebold;font-size:16pt;'>Data Feast</b> | Data: Climate Data Explorer (Greenhouse gasses emissions)</span>"
+# text_caption <- "<span style='font-family:Montserrat;'><b>Estados Unidos de América</b> es el país con la emisión de gases más grande de todo el continente Americano. Emitieron más del 50% de gases invernadero del total del continenente en todos los sectores con excepción de Agricultura. Se observa que del Sector <i style='color:#0093ff;'>Energia y Electricidad</i>, los EEUU emiten el 70.2% de los gases totales y un 69.0% por el sector <i style='color:#d20047;'>Transporte</i>. <b>Brasil</b>, por otro lado, es uno de los países con mayor emision en el sector <i style='color:#368e11;'>Agricultura, uso de Suelo y silvicultura</i> con 42.8% -por la deforestación en mi opinión.<br>En el caso particular de <b>México</b>, emite <b>9.3 veces menos</b> que EEUU y su contribución en la emision de gases es menor del 10% en cada uno de los Sectores siendo el de la <i style='color:#da8100;'>Industria</i> el más alto. </span><br><br><span>Visualization: <b style='font-family:Norsebold;font-size:16pt;'>Data Feast</b> | Data: Climate Data Explorer (Greenhouse gasses emissions)</span>"
+
+text_caption <- "<span style='font-family:Monserrat'>Existen 5 principales actividades que generan gases de efecto invernadero: <i style='color:#368e11;'>Agricultura, uso de Suelo y silvicultura</i>, <i style='color:#0093ff;'>Energia y Electricidad</i>, <i style='color:#d20047;'>Transporte</i>, <i style='color:#da8100;'>Industria</i> y <i style='color:#7c5c2b;'>Construcción</i>. De acuerdo con los datos de <i>Climate Data Explorer</i>, en el continente Americano <b>EEUU</b> es el país que emite mayor cantidad de gases de efecto invernadero. Emiten más del 50% del total del continente en todos los sectores, con excepción de agricultura. En el sector de energía y electricidad emitieron el 70.2% de los gases totales y un 69% en el sector transporte. <b>Brasil</b>, por otro lado, es uno de los países con mayor emisión en el sector de agricultura, uso de suleo y silvicultura con 42.8%. <br>En el caso particular de <b>México</b>, el país emite 9 veces menos de gases de efecto invernadero que EEUU y su contribución en la emisión de los gases es menor del 10% en cada uno de los sectores, siendo el de la industria el más alto.</span><br><br><span>Visualization: <b style='font-family:Norsebold;font-size:16pt;'>Data Feast</b> | Data: Climate Data Explorer (Greenhouse gasses emissions 2018)</span>"
 
 legend <- ggplot(df_legend, aes(x = rel, y = fct_rev(category))) +
   # Each category
@@ -129,7 +132,7 @@ legend <- ggplot(df_legend, aes(x = rel, y = fct_rev(category))) +
                 alpha = rel), size = 0.25) +
   #Horizontal lines for sector
   geom_hline(data = tibble(y = -0.5:5.5), aes(yintercept = y), color = "white", size = 0.8) +
-  # Arrows for Realtive Scale
+  # Arrows for Relative Scale
   geom_segment(data = tibble(x = c(0.15, 0.6), xend = c(-0.05, 0.80)),
                aes(x = x, xend = xend, y = 5.85, yend = 5.85),
                inherit.aes = FALSE, color = "grey30",
@@ -146,7 +149,7 @@ legend <- ggplot(df_legend, aes(x = rel, y = fct_rev(category))) +
             inherit.aes = FALSE, family = "Montserrat", color = "black", size = 4.0, nudge_y = 0.25, fontface = "bold") +
   geom_text(data = max_country, aes(x = rel, y = Sector_New, label = glue::glue("{format(rel*100, digits = 3)}%")),
             inherit.aes = FALSE, family = "Montserrat", color = "black", size = 3.5, nudge_y = -0.25) +
-  labs(title = "¿Cuáles Países del Contienent Americano emitieron más Gases Invernadero en 2018?",
+  labs(title = "¿Cuáles países del continente Americano son lo que más emiten gases de efecto invernadero y cuáles son las fuentes?",
        caption = text_caption) +
   annotate("text", x = 0.35, y = 6.4, label = "Emisiones Relativas de los Países Americanos",
            family = "PT", color = "grey45", size = 5.2) +
@@ -160,16 +163,16 @@ legend <- ggplot(df_legend, aes(x = rel, y = fct_rev(category))) +
     plot.margin = margin(rep(0,4)),
     plot.title = element_textbox(hjust = 0.5, face = "bold", color = "grey35",
                                  lineheight = 1.2, size = 27, margin = margin(b = 0, t = 0),
-                                 width = unit(6.5, "inches"), family = "Montserrat"),
+                                 width = unit(7.5, "inches"), family = "Montserrat"),
     panel.spacing = unit(0, "lines"),
     plot.caption = element_textbox(color = "grey30", size = 14, hjust = 0,
                                    lineheight = 1.4, margin = margin(b = 0, t = -10),
-                                   width = unit(7.5, "inches")),
+                                   width = unit(8.5, "inches")),
     axis.text.y = element_text(size = 12, family = "Montserrat", face = "bold", color = rev(darken(emissions_Sector, .2)), hjust = 0)
   )
 
 America <- ggdraw(grid) +
-  draw_plot(legend, x = 0.245, y = 0.24, width = 0.45, height = 0.47, hjust = 0.5, vjust = 0.5)
+  draw_plot(legend, x = 0.3, y = 0.24, width = 0.55, height = 0.47, hjust = 0.5, vjust = 0.5)
 
 filename <- paste0(Sys.Date(), "_FeastViz_GreenHouseEmissions.pdf")
 
